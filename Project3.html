@@ -1,0 +1,397 @@
+
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>CMSC 405 - Project 3</title>
+<style>
+</style>
+<script src="threejs/three.js"></script>
+<script>
+
+"use strict";
+
+var scene, camera, renderer;  // Three.js rendering basics.
+
+var canvas;  // The canvas on which the image is rendered.
+
+
+var model;   // Contains the visible objects in the scene, but
+             // not the lights or camera.  The model can be
+             // rotated using the keyboard. 
+
+var cube, pyramid;  // The two visible objects.
+var diamond, trapezoid, snow, pilar;
+
+var cubeWireframe, pyramidWireframe;  // Wireframe versions of the objects,
+                                      // which are only visible when
+                                      // "Show Edges" checkbox is checked.
+var diamondWireframe, trapezoidWireframe, snowWireframe, pilarWireframe;
+
+var whiteMaterial;       // A MeshLambertMaterial with color = "white".
+var cubeFaceMaterial;    // A MeshFaceMaterial for use on the cube.
+var pyramidFaceMaterial; // A MeshFaceMaterial for use on the pyramid.
+var diamondFaceMaterial;
+var trapezoidFaceMaterial;
+var snowFaceMaterial;
+var pilarFaceMaterial;
+
+
+
+/*  Create the scene graph.  This function is called once, as soon as the page loads.
+ *  The renderer has already been created before this function is called.
+ */
+function createWorld() {
+    renderer.setClearColor( 0 );  // Set background color (0, or 0x000000, is black).
+    scene = new THREE.Scene();
+    
+    // create a camera, sitting on the positive z-axis.  The camera is not part of the scene.
+    camera = new THREE.PerspectiveCamera(20, canvas.width/canvas.height, 1, 30);
+    camera.position.z = 10;
+    
+    // create some lights and add them to the scene.
+    scene.add( new THREE.DirectionalLight( 0xffffff, 0.4 ) ); // dim light shining from above
+    var viewpointLight = new THREE.DirectionalLight( 0xffffff, 0.8 );  // a light to shine in the direction the camera faces
+    viewpointLight.position.set(0,0,1);  // shines down the z-axis
+    scene.add(viewpointLight);
+    
+    var cubeGeom = new THREE.BoxGeometry(2,2,2);
+    
+    var pyramidGeom = new THREE.Geometry();
+
+	var diamondGeom = new THREE.Geometry();
+	var trapezoidGeom = new THREE.Geometry();
+	var snowGeom = new THREE.Geometry();
+	var pilarGeom = new THREE.BoxGeometry(1,2,1);
+	var snowGeom = new THREE.Geometry();
+    
+    pyramidGeom.vertices = [  // array of Vector3 giving vertex coordinates
+            new THREE.Vector3( 1, 0, 1 ),    // vertex number 0
+            new THREE.Vector3( 1, 0, -1 ),   // vertex number 1
+            new THREE.Vector3( -1, 0, -1 ),  // vertex number 2
+            new THREE.Vector3( -1, 0, 1 ),   // vertex number 3
+            new THREE.Vector3( 0, 1, 0 )     // vertex number 4
+        ];
+        
+    pyramidGeom.faces = [  // array of Face3 giving the triangular faces
+            new THREE.Face3( 3, 2, 1),  // one half of the bottom face
+            new THREE.Face3( 3, 1, 0),  // second half of the bottom face
+            new THREE.Face3( 3, 0, 4),  // remaining faces are the four sides
+            new THREE.Face3( 0, 1, 4),
+            new THREE.Face3( 1, 2, 4),
+            new THREE.Face3( 2, 3, 4)
+        ];
+
+	diamondGeom.vertices = [
+		new THREE.Vector3(1,0,1),
+		new THREE.Vector3(1,0,-1),
+		new THREE.Vector3(-1,0,-1),
+		new THREE.Vector3(-1,0,1),
+		new THREE.Vector3(0,1,0),
+		new THREE.Vector3(0,-1,0)
+	];
+
+	diamondGeom.faces = [
+		new THREE.Face3(4,2,3),
+		new THREE.Face3(4,3,0),
+		new THREE.Face3(4,0,1),
+		new THREE.Face3(4,1,2),
+		new THREE.Face3(3,2,5),
+		new THREE.Face3(2,1,5),
+		new THREE.Face3(1,0,5),
+		new THREE.Face3(0,3,5)
+	];
+	
+	trapezoidGeom.vertices = [
+		new THREE.Vector3(2,-1,1),
+		new THREE.Vector3(1,1,1),
+		new THREE.Vector3(-1,1,1),
+		new THREE.Vector3(-2,-1,1),
+		new THREE.Vector3(2,-1,-1),
+		new THREE.Vector3(1,1,-1),
+		new THREE.Vector3(-1,1,-1),
+		new THREE.Vector3(-2,-1,-1)
+	];
+	
+	trapezoidGeom.faces = [
+		new THREE.Face3(0,1,2),
+		new THREE.Face3(2,3,0),
+		new THREE.Face3(0,4,5),
+		new THREE.Face3(0,5,1),
+		new THREE.Face3(1,5,6),
+		new THREE.Face3(6,2,1),
+		new THREE.Face3(2,6,7),
+		new THREE.Face3(7,3,2),
+		new THREE.Face3(5,4,7),
+		new THREE.Face3(7,6,5),
+		new THREE.Face3(0,4,7),
+		new THREE.Face3(7,3,0)
+	];
+	
+	while ( snowGeom.vertices.length < 1000 ) {
+		var x = 2*Math.random() - 1;  // (between -1 and 1)
+		var y = 2*Math.random() - 1;
+		var z = 2*Math.random() - 1;
+		if ( x*x + y*y + z*z < 1 ) { // use vector only if length is less than 1
+			var pt = new THREE.Vector3( x, y, z );
+			snowGeom.vertices.push(pt);
+		}
+	}
+    
+    pyramidGeom.computeFaceNormals();
+	diamondGeom.computeFaceNormals();
+	trapezoidGeom.computeFaceNormals();
+    
+    pyramidGeom.faces[0].materialIndex = 0;
+    for (var i = 1; i <= 5; i++) {
+        pyramidGeom.faces[i].materialIndex = i-1;
+    }
+	/* TODO: Generates an error? 
+	diamondGeom.faces[0].materialIndex = 0;
+    for (var j = 1; j <= 8; j++) {
+        diamondGeom.faces[j].materialIndex = j-1;
+    }
+	trapezoidGeom.faces[0].materialIndex = 0;
+	for (var k = 0; k <= 12;k++) {
+		trapezoidGeom.faces[k].materialIndex = k;
+	}
+	*/
+
+    whiteMaterial = new THREE.MeshLambertMaterial( { color: "white" });
+     
+    cubeFaceMaterial = new THREE.MeshFaceMaterial( [  // An array of materials
+        new THREE.MeshLambertMaterial( { color: "red" } ),     // +x face
+        new THREE.MeshLambertMaterial( { color: "cyan" } ),    // -x face
+        new THREE.MeshLambertMaterial( { color: "green" } ),   // +y face
+        new THREE.MeshLambertMaterial( { color: "magenta" } ), // -y face
+        new THREE.MeshLambertMaterial( { color: "yellow" } ),    // +z face
+        new THREE.MeshLambertMaterial( { color: "blue" } )   // -z face
+    ] );
+    
+    pyramidFaceMaterial = new THREE.MeshFaceMaterial( [
+        new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading } ),
+        new THREE.MeshLambertMaterial( { color: 0x99ffff, shading: THREE.FlatShading } ),
+        new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } ),
+        new THREE.MeshLambertMaterial( { color: 0xff9999, shading: THREE.FlatShading } )
+    ] );
+
+	diamondFaceMaterial = new THREE.MeshFaceMaterial([
+        	new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0x99ffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff9999, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff9999, shading: THREE.FlatShading } )
+	]);
+	
+	trapezoidFaceMaterial = new THREE.MeshFaceMaterial([
+        	new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0x99ffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0x99ffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0x99ffff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xff99ff, shading: THREE.FlatShading } ),
+        	new THREE.MeshLambertMaterial( { color: 0xffff99, shading: THREE.FlatShading } )
+	]);
+	
+	var snowMaterial = new THREE.PointCloudMaterial( {
+              color: "white",
+              size: 2,
+              sizeAttenuation: false
+          } );
+    
+    var wireMaterial = new THREE.MeshBasicMaterial( { // wireframe material for showing black edges on objects
+        color: "black",
+        wireframe: true,
+        wireframeLinewidth: 2
+    } );
+    cubeWireframe = new THREE.Mesh(cubeGeom, wireMaterial);
+    cubeWireframe.visible = false;  // initially, wireframes are not visible
+    pyramidWireframe = new THREE.Mesh(pyramidGeom, wireMaterial );
+    pyramidWireframe.visible = false;
+
+	diamondWireframe = new THREE.Mesh(diamondGeom, wireMaterial);
+	diamondWireframe.visible = false;
+	
+	trapezoidWireframe = new THREE.Mesh(trapezoidGeom, wireMaterial);
+	trapezoidWireframe.visible = false;
+	
+	pilarWireframe = new THREE.Mesh(pilarGeom, wireMaterial);
+	pilarWireframe.visible = false;
+    
+    cube = new THREE.Mesh( cubeGeom, cubeFaceMaterial );
+    cube.add(cubeWireframe);  // Make the wirefraem a child of cube, so it will be transformed along with cube.
+    cube.position.x = -1.5;
+	cube.position.y = 1;
+    cube.rotation.set(0.2,-0.4,0);
+	cube.scale.set(0.5,0.5,0.5);
+    
+    pyramid = new THREE.Mesh( pyramidGeom, pyramidFaceMaterial );
+    pyramid.add(pyramidWireframe);
+    pyramid.position.x = 1.5;
+	pyramid.position.y = 1;
+    pyramid.rotation.set(0.2,-0.4,0);    
+	pyramid.scale.set(0.5,0.5,0.5);    
+
+	diamond = new THREE.Mesh(diamondGeom, diamondFaceMaterial);
+	diamond.add(diamondWireframe);
+	diamond.position.x = 0;
+	diamond.position.y = 1;
+    diamond.rotation.set(0.5,0.2,0);
+	diamond.scale.set(0.5,0.5,0.5);
+	
+	trapezoid = new THREE.Mesh(trapezoidGeom, trapezoidFaceMaterial);
+	trapezoid.add(trapezoidWireframe);
+	trapezoid.position.x = -1.5;
+	trapezoid.position.y = -1;
+	trapezoid.scale.set(0.5,0.5,0.5);
+	
+	pilar = new THREE.Mesh(pilarGeom, cubeFaceMaterial);
+	pilar.add(pilarWireframe);
+	pilar.position.x = 0;
+	pilar.position.y = -1;
+    pilar.rotation.set(0.5,0.4,0);
+	pilar.scale.set(0.5,0.5,0.5);
+	
+	snow = new THREE.PointCloud( snowGeom, snowMaterial );
+	snow.scale.set(3,3,3);
+	snow.visible = false;
+
+    scene.add(cube);
+    scene.add(pyramid);
+	scene.add(diamond);
+	scene.add(trapezoid);
+	scene.add(pilar);
+	scene.add( snow );
+    
+}
+
+
+/*  Render the scene.  This is called for each frame of the animation.
+ */
+function render() {
+    renderer.render(scene, camera);
+}
+
+
+/* Called when the "Show Edges" checkbox is checked or unchecked.
+ * Changes the visiblity of the wireframe objects to match the setting.\
+ */
+function doWireframeCheckbox() {
+    var show = document.getElementById("wireframe").checked;
+    cubeWireframe.visible = show;
+    pyramidWireframe.visible = show;
+	diamondWireframe.visible = show;
+	trapezoidWireframe.visible = show;
+	pilarWireframe.visible = show;
+    render();
+}
+
+/* Called when the setting of the material radio buttons is changed.
+ * Changes the material on the cube and pyramid to match the setting.
+ */
+function doChangeMaterial() {
+    if (document.getElementById("white").checked) {
+        pyramid.material = whiteMaterial;
+        cube.material = whiteMaterial;
+		diamond.material = whiteMaterial;
+		trapezoid.material = whiteMaterial;
+		pilar.material = whiteMaterial;
+    }
+    else {
+        pyramid.material = pyramidFaceMaterial;
+        cube.material = cubeFaceMaterial;
+		diamond.material = diamondFaceMaterial;
+		trapezoid.material = trapezoidFaceMaterial;
+		pilar.material = cubeFaceMaterial;
+    }
+    render();   
+}
+
+function setScale() {
+	var slider = document.getElementById("start").value / 10;
+	
+	pyramid.scale.set(slider,slider,slider);
+	cube.scale.set(slider,slider,slider);
+	diamond.scale.set(slider,slider,slider);
+	trapezoid.scale.set(slider,slider,slider);
+	pilar.scale.set(slider,slider,slider);
+	
+	render();
+}
+
+function setSnow() {
+	if (document.getElementById("snow").checked) {
+		snow.visible = true;
+	} else {
+		snow.visible = false;
+	}
+	
+	render();
+}
+
+//----------------------------------------------------------------------------------
+
+/**
+ *  This init() function is called when by the onload event when the document has loaded.
+ */
+function init() {
+    try {
+        canvas = document.getElementById("glcanvas");
+        renderer = new THREE.WebGLRenderer( {
+            canvas: canvas,
+            antialias: true
+        } );
+    }
+    catch (e) {
+        document.getElementById("canvas-holder").innerHTML =
+                 "<h3><b>Sorry, WebGL is required but is not available.</b><h3>";
+        return;
+    }
+    document.getElementById("wireframe").checked = false;
+    document.getElementById("wireframe").onchange = doWireframeCheckbox;
+    document.getElementById("multi").checked = true;
+    document.getElementById("snow").checked = false;
+    document.getElementById("white").onchange = doChangeMaterial;
+    document.getElementById("multi").onchange = doChangeMaterial;
+	document.getElementById("start").onchange = setScale;
+	document.getElementById("snow").onchange = setSnow;
+    createWorld();
+    render();
+}
+
+</script>
+</head>
+<body onload="init()">
+
+<h2>CMSC 405</h2>
+<p>Project 3</p>
+
+<p><b>Click on various options below to change the image displayed</b></p>
+
+<p>
+   <label><input type="radio" name="material" id="white">White Material</label>
+   <label><input type="radio" name="material" id="multi">MeshFaceMaterial</label>
+   <label style ="margin-left:50px"><input type="checkbox" id="wireframe">Show Edges</label>
+</p>
+
+<p>
+   <label style ="margin-left:50px"><input type="checkbox" id="snow">Snow</label>
+   <input type="range" id="start" name="scale"
+         min="0" max="10">
+  <label for="scale">Scale</label>
+</p>
+
+<div id="canvas-holder">
+<canvas id="glcanvas" width="640" height="480"></canvas>
+</div>
+
+</body>
+</html>
